@@ -6,6 +6,8 @@ import { fileURLToPath } from "url";
 import connectDB from "./config/db.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import voteRoutes from "./routes/voteRoutes.js";
+import cors from "cors"; // Import CORS
+import { mkdir } from "fs/promises";
 
 // Load env vars
 dotenv.config();
@@ -22,11 +24,20 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(express.json());
 
+// Enable CORS for frontend on http://localhost:3000
+app.use(
+  cors({
+    origin: "http://localhost:3000", // Allow only this origin
+    methods: ["GET", "POST", "PUT", "DELETE"], // Specify allowed methods
+    credentials: true, // Enable sending cookies or authentication headers
+  })
+);
+
 // Serve uploaded files
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Create uploads directory if it doesn't exist
-import { mkdir } from "fs/promises";
+
 try {
   await mkdir(path.join(__dirname, "uploads/candidates"), { recursive: true });
 } catch (error) {

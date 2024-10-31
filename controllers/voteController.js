@@ -1,5 +1,4 @@
 // controllers/voteController.js
-
 import asyncHandler from "express-async-handler";
 import Candidate from "../models/candidateModel.js";
 import Vote from "../models/voteModel.js";
