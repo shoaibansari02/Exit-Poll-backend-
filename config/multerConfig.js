@@ -18,7 +18,7 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  if (file.fieldname === "photo") {
+  if (file.fieldname === "photo" || file.fieldname === "partyLogo") {
     // Handle image files
     if (file.mimetype.startsWith("image/")) {
       cb(null, true);

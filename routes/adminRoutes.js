@@ -33,14 +33,25 @@ router.get("/getZonesByCity/:cityId", getZonesByCity);
 router.delete("/deleteZone/:id", protect, deleteZone);
 router.put("/updateZone/:id", protect, updateZone);
 
-router.post("/add-candidate", protect, upload.single("photo"), addCandidate);
-router.get("/get-candidates/:zoneId", protect, getCandidatesByZone);
+router.post(
+  "/add-candidate",
+  protect,
+  upload.fields([
+    { name: "photo", maxCount: 1 },
+    { name: "partyLogo", maxCount: 1 },
+  ]),
+  addCandidate
+);
+router.get("/get-candidates/:zoneId", getCandidatesByZone);
 router.delete("/delete-candidate/:id", protect, deleteCandidate);
 router.get("/dashboard/stats", protect, getDashboardStats);
 router.put(
   "/update-candidate/:id",
   protect,
-  upload.single("photo"),
+  upload.fields([
+    { name: "photo", maxCount: 1 },
+    { name: "partyLogo", maxCount: 1 },
+  ]),
   updateCandidate
 );
 

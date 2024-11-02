@@ -12,9 +12,17 @@ const candidateSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  partyName: {
+    type: String,
+    required: true,
+  },
   photo: {
     type: String,
     default: null,
+  },
+  partyLogo: {
+    type: String,
+    required: true,
   },
   totalVotes: {
     type: Number,

@@ -14,6 +14,10 @@ import path from "path";
 
 //jwt token generater
 import generateToken from "../utils/generateToken.js";
+import {
+  uploadToFirebasePhoto,
+  deleteExistingPhoto,
+} from "../utils/firebase.js";
 
 // Utility function to upload file to Firebase
 export async function uploadToFirebase(localFilePath, candidateId) {
@@ -288,57 +292,77 @@ export const updateZone = asyncHandler(async (req, res) => {
 
 // add Candidate
 export const addCandidate = asyncHandler(async (req, res) => {
-  const { zoneId, name } = req.body;
-
-  // Validation
-  if (!zoneId || !name || !req.file) {
-    // Delete uploaded file if validation fails
-    if (req.file) {
-      await fs.unlink(req.file.path);
-    }
-    res.status(400);
-    throw new Error("Please provide zone ID, candidate name, and photo");
-  }
-
-  // Check if zone exists
-  const zone = await Zone.findById(zoneId).populate("city");
-  if (!zone) {
-    if (req.file) {
-      await fs.unlink(req.file.path);
-    }
-    res.status(404);
-    throw new Error("Zone not found");
-  }
+  const { zoneId, name, partyName } = req.body;
+  let photoPath = null;
+  let partyLogoPath = null;
 
   try {
-    // Create candidate first to get an ID for the photo filename
+    // Input validation
+    if (!zoneId || !name || !partyName) {
+      res.status(400);
+      throw new Error("Please provide zone ID, candidate name, and party name");
+    }
+
+    if (!req.files || !req.files["photo"] || !req.files["partyLogo"]) {
+      res.status(400);
+      throw new Error("Please provide both candidate photo and party logo");
+    }
+
+    // Save file paths for cleanup in case of error
+    photoPath = req.files["photo"][0].path;
+    partyLogoPath = req.files["partyLogo"][0].path;
+
+    // Check if zone exists
+    const zone = await Zone.findById(zoneId).populate("city");
+    if (!zone) {
+      res.status(404);
+      throw new Error("Zone not found");
+    }
+
+    // Upload files to Firebase first
+    const photoUrl = await uploadToFirebase(
+      photoPath,
+      `candidate_photos/${Date.now()}_photo`
+    );
+    const partyLogoUrl = await uploadToFirebase(
+      partyLogoPath,
+      `party_logos/${Date.now()}_logo`
+    );
+
+    // Create candidate with URLs already set
     const candidate = await Candidate.create({
       zone: zoneId,
       name: name.trim(),
-      photo: null, // Temporary, will be updated with Firebase URL
+      partyName: partyName.trim(),
+      photo: photoUrl,
+      partyLogo: partyLogoUrl,
     });
 
-    // Upload photo to Firebase
-    const photoUrl = await uploadToFirebase(
-      req.file.path,
-      candidate._id.toString()
-    );
-
-    // Update candidate with Firebase photo URL
-    candidate.photo = photoUrl;
-    await candidate.save();
-
+    // Success response
     res.status(201).json({
       _id: candidate._id,
       name: candidate.name,
+      partyName: candidate.partyName,
       photo: candidate.photo,
+      partyLogo: candidate.partyLogo,
       zone: zone.name,
       city: zone.city.name,
     });
   } catch (error) {
+    // Clean up uploaded files in case of any error
+    const filesToDelete = [photoPath, partyLogoPath].filter(Boolean);
+    await Promise.all(
+      filesToDelete.map((path) => fs.promises.unlink(path).catch(() => {}))
+    );
+
     console.error("Candidate creation error:", error);
-    res.status(500);
-    throw new Error("Error creating candidate");
+
+    // Set appropriate status code
+    if (!res.statusCode || res.statusCode === 200) {
+      res.status(500);
+    }
+
+    throw error;
   }
 });
 
@@ -360,8 +384,9 @@ export const getCandidatesByZone = asyncHandler(async (req, res) => {
     candidates: candidates.map((candidate) => ({
       _id: candidate._id,
       name: candidate.name,
+      partyName: candidate.partyName,
       photo: candidate.photo,
-      // photoUrl: `/uploads/candidates/${candidate.photo}`,
+      partyLogo: candidate.partyLogo,
     })),
   });
 });
@@ -388,48 +413,125 @@ export const deleteCandidate = asyncHandler(async (req, res) => {
 
 // Update Candidate
 export const updateCandidate = asyncHandler(async (req, res) => {
-  const candidate = await Candidate.findById(req.params.id);
-
-  if (!candidate) {
-    if (req.file) {
-      await fs.unlink(req.file.path);
-    }
-    res.status(404);
-    throw new Error("Candidate not found");
-  }
+  const { name, partyName } = req.body;
+  let photoPath = null;
+  let partyLogoPath = null;
+  let uploadedFiles = [];
 
   try {
-    // Update name if provided
-    if (req.body.name) {
-      candidate.name = req.body.name.trim();
+    // Find candidate
+    const candidate = await Candidate.findById(req.params.id).populate("zone");
+    if (!candidate) {
+      res.status(404);
+      throw new Error("Candidate not found");
     }
 
-    // Update photo if provided
-    if (req.file) {
-      // Delete existing photo from Firebase
-      if (candidate.photo) {
-        await deleteExistingPhoto(candidate.photo);
+    // Save file paths for cleanup in case of error
+    if (req.files) {
+      photoPath = req.files["photo"]?.[0]?.path;
+      partyLogoPath = req.files["partyLogo"]?.[0]?.path;
+    }
+
+    // Update basic information if provided
+    if (name) {
+      candidate.name = name.trim();
+    }
+    if (partyName) {
+      candidate.partyName = partyName.trim();
+    }
+
+    // Handle photo update
+    if (photoPath) {
+      try {
+        // Upload new photo first
+        const photoUrl = await uploadToFirebasePhoto(
+          photoPath,
+          `candidate_photos/${candidate._id}_${Date.now()}_photo`
+        );
+        uploadedFiles.push({ type: "photo", url: photoUrl });
+
+        // Delete existing photo only after successful upload
+        if (candidate.photo) {
+          await deleteExistingPhoto(candidate.photo);
+        }
+
+        candidate.photo = photoUrl;
+      } catch (error) {
+        console.error("Error handling photo upload:", error);
+        throw new Error("Failed to process photo upload");
       }
-
-      // Upload new photo to Firebase
-      const photoUrl = await uploadToFirebase(
-        req.file.path,
-        candidate._id.toString()
-      );
-      candidate.photo = photoUrl;
     }
 
+    // Handle party logo update
+    if (partyLogoPath) {
+      try {
+        // Upload new logo first
+        const partyLogoUrl = await uploadToFirebasePhoto(
+          partyLogoPath,
+          `party_logos/${candidate._id}_${Date.now()}_logo`
+        );
+        uploadedFiles.push({ type: "logo", url: partyLogoUrl });
+
+        // Delete existing logo only after successful upload
+        if (candidate.partyLogo) {
+          await deleteExistingPhoto(candidate.partyLogo);
+        }
+
+        candidate.partyLogo = partyLogoUrl;
+      } catch (error) {
+        console.error("Error handling logo upload:", error);
+        throw new Error("Failed to process logo upload");
+      }
+    }
+
+    // Save updates
     const updatedCandidate = await candidate.save();
 
+    // Send response
     res.json({
       _id: updatedCandidate._id,
       name: updatedCandidate.name,
+      partyName: updatedCandidate.partyName,
       photo: updatedCandidate.photo,
+      partyLogo: updatedCandidate.partyLogo,
+      zone: updatedCandidate.zone.name,
+      city: updatedCandidate.zone.city.name,
     });
   } catch (error) {
+    // Clean up any temporary files
+    const filesToDelete = [photoPath, partyLogoPath].filter(Boolean);
+
+    if (filesToDelete.length > 0) {
+      await Promise.all(
+        filesToDelete.map((path) =>
+          fs
+            .unlink(path)
+            .catch((unlinkError) =>
+              console.error("Error deleting temporary file:", unlinkError)
+            )
+        )
+      );
+    }
+
+    // Clean up any uploaded files in Firebase if there was an error
+    if (uploadedFiles.length > 0) {
+      await Promise.all(
+        uploadedFiles.map((file) =>
+          deleteExistingPhoto(file.url).catch((deleteError) =>
+            console.error(`Error deleting uploaded ${file.type}:`, deleteError)
+          )
+        )
+      );
+    }
+
     console.error("Candidate update error:", error);
-    res.status(500);
-    throw new Error("Error updating candidate");
+
+    // Set appropriate status code if not already set
+    if (!res.statusCode || res.statusCode === 200) {
+      res.status(500);
+    }
+
+    throw new Error(error.message || "Failed to update candidate");
   }
 });
 
