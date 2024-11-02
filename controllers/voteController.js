@@ -83,8 +83,8 @@ export const getZoneVotes = asyncHandler(async (req, res) => {
   const baseURL = `${req.protocol}://${req.get("host")}`;
 
   const candidates = await Candidate.find({ zone: zoneId })
-    .select("name totalVotes photo")
-    .sort({ totalVotes: -1 }); // Sort by votes in descending order
+    .select("name totalVotes photo partyName partyLogo") // Added partyName and partyLogo to select
+    .sort({ totalVotes: -1 });
 
   const totalVotesInZone = candidates.reduce(
     (sum, candidate) => sum + candidate.totalVotes,
@@ -96,9 +96,14 @@ export const getZoneVotes = asyncHandler(async (req, res) => {
     candidates: candidates.map((candidate) => ({
       _id: candidate._id,
       name: candidate.name,
+      partyName: candidate.partyName,
       votes: candidate.totalVotes,
       photo: candidate.photo,
+      partyLogo: candidate.partyLogo,
       photoUrl: `${baseURL}/uploads/candidates/${candidate.photo}`,
+      partyLogoUrl: candidate.partyLogo
+        ? `${baseURL}/uploads/parties/${candidate.partyLogo}`
+        : null, // Added partyLogoUrl
       percentage: totalVotesInZone
         ? ((candidate.totalVotes / totalVotesInZone) * 100).toFixed(2)
         : 0,
