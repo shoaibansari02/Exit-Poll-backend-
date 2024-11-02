@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Filter, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Search, Filter, Edit2, Trash2, ImageOff } from 'lucide-react';
 import api from '../utils/axios';
 import { handleApiError } from '../utils/helpers';
 import { Button } from '../components/common/Button';
@@ -20,6 +20,10 @@ export default function CandidatesPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedCandidate, setSelectedCandidate] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [imageLoadErrors, setImageLoadErrors] = useState({
+        photos: new Set(),
+        partyLogos: new Set()
+    });
 
     useEffect(() => {
         fetchCities();
@@ -67,8 +71,14 @@ export default function CandidatesPage() {
             setLoading(true);
             const response = await api.get(`/admin/get-candidates/${zoneId}`);
             setCandidates(response.data.candidates);
+            // Reset image load errors when fetching new candidates
+            setImageLoadErrors({
+                photos: new Set(),
+                partyLogos: new Set()
+            });
         } catch (err) {
-            setError(handleApiError(err));
+            console.error('Error fetching candidates:', err);
+            setError(err.response?.data?.message || 'Failed to fetch candidates');
         } finally {
             setLoading(false);
         }
@@ -85,21 +95,54 @@ export default function CandidatesPage() {
         }
     };
 
-    // Filter candidates based on search term
+    const handleImageError = (candidateId, type) => {
+        setImageLoadErrors(prev => ({
+            ...prev,
+            [type]: new Set([...prev[type], candidateId])
+        }));
+    };
+
     const filteredCandidates = candidates.filter(candidate =>
-        candidate.name.toLowerCase().includes(searchTerm.toLowerCase())
+        candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        candidate.partyName.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const columns = [
         {
-            header: 'Photo',
+            header: 'Candidate Photo',
             cell: (row) => (
                 <div className="flex items-center">
-                    <img
-                        src={row.photoUrl}
-                        alt={row.name}
-                        className="h-10 w-10 md:h-12 md:w-12 rounded-full object-cover border-2 border-gray-200"
-                    />
+                    {imageLoadErrors.photos.has(row._id) ? (
+                        <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-gray-200 flex items-center justify-center">
+                            <ImageOff className="h-6 w-6 text-gray-400" />
+                        </div>
+                    ) : (
+                        <img
+                            src={row.photo}
+                            alt={row.name}
+                            className="h-10 w-10 md:h-12 md:w-12 rounded-full object-cover border-2 border-gray-200"
+                            onError={() => handleImageError(row._id, 'photos')}
+                        />
+                    )}
+                </div>
+            ),
+        },
+        {
+            header: 'Party Logo',
+            cell: (row) => (
+                <div className="flex items-center">
+                    {imageLoadErrors.partyLogos.has(row._id) ? (
+                        <div className="h-8 w-8 md:h-10 md:w-10 bg-gray-200 flex items-center justify-center rounded">
+                            <ImageOff className="h-5 w-5 text-gray-400" />
+                        </div>
+                    ) : (
+                        <img
+                            src={row.partyLogo}
+                            alt={`${row.partyName} logo`}
+                            className="h-8 w-8 md:h-10 md:w-10 object-contain"
+                            onError={() => handleImageError(row._id, 'partyLogos')}
+                        />
+                    )}
                 </div>
             ),
         },
@@ -109,6 +152,15 @@ export default function CandidatesPage() {
             cell: (row) => (
                 <div className="font-medium text-gray-900 text-sm md:text-base">
                     {row.name}
+                </div>
+            )
+        },
+        {
+            header: 'Party Name',
+            accessor: 'partyName',
+            cell: (row) => (
+                <div className="text-gray-600 text-sm md:text-base">
+                    {row.partyName}
                 </div>
             )
         },
@@ -209,7 +261,7 @@ export default function CandidatesPage() {
                             <div className="relative">
                                 <input
                                     type="text"
-                                    placeholder="Search candidates..."
+                                    placeholder="Search by candidate or party name..."
                                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}

@@ -6,7 +6,8 @@ import {
     Users,
     Plus,
     TrendingUp,
-    TrendingDown
+    TrendingDown,
+    Image
 } from 'lucide-react';
 import api from '../utils/axios';
 import { handleApiError } from '../utils/helpers';
@@ -62,6 +63,7 @@ export default function DashboardPage() {
         cities: 0,
         zones: 0,
         candidates: 0,
+        media: { photo: false, video: false },
         loading: true,
         error: null
     });
@@ -74,7 +76,10 @@ export default function DashboardPage() {
 
     const fetchDashboardData = async () => {
         try {
-            const requests = [api.get('/admin/cities')];
+            const requests = [
+                api.get('/admin/cities'),
+                api.get('/admin/get-media')
+            ];
 
             if (cityId) {
                 requests.push(api.get(`/admin/getZonesByCity/${cityId}`));
@@ -84,12 +89,20 @@ export default function DashboardPage() {
                 requests.push(api.get(`/admin/get-candidates/${zoneId}`));
             }
 
-            const [citiesRes, zonesRes, candidatesRes] = await Promise.all(requests);
+            const [citiesRes, mediaRes, zonesRes, candidatesRes] = await Promise.all(requests);
+
+            // Calculate total media items
+            const mediaCount = (mediaRes.data.photo ? 1 : 0) + (mediaRes.data.video ? 1 : 0);
 
             setStats({
                 cities: citiesRes.data.length,
                 zones: zonesRes ? zonesRes.data.length : 0,
                 candidates: candidatesRes ? candidatesRes.data.length : 0,
+                media: {
+                    count: mediaCount,
+                    photo: mediaRes.data.photo,
+                    video: mediaRes.data.video
+                },
                 loading: false,
                 error: null
             });
@@ -117,6 +130,11 @@ export default function DashboardPage() {
             title: 'Add Candidate',
             icon: Users,
             onClick: () => navigate('/candidates')
+        },
+        {
+            title: 'Manage Media',
+            icon: Image,
+            onClick: () => navigate('/media')
         }
     ];
 
@@ -153,7 +171,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
                 <StatCard
                     title="Total Cities"
                     value={stats.cities}
@@ -187,12 +205,23 @@ export default function DashboardPage() {
                     }}
                     onClick={() => navigate('/candidates')}
                 />
+                <StatCard
+                    title="Media Files"
+                    value={stats.media.count}
+                    icon={Image}
+                    trend={{
+                        value: stats.media.count > 0 ? 100 : 0,
+                        direction: stats.media.count > 0 ? 'up' : 'down',
+                        label: 'uploads'
+                    }}
+                    onClick={() => navigate('/media')}
+                />
             </div>
 
             {/* Quick Actions */}
             <div className="bg-gray-100 rounded-lg p-5">
                 <h2 className="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {quickActions.map((action, index) => (
                         <QuickActionButton
                             key={index}

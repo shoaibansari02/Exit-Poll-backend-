@@ -1,3 +1,5 @@
+//src/componenets/layout/DashboardLayout.jsx
+
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -8,7 +10,8 @@ import {
     LogOut,
     Settings,
     Menu,
-    X
+    X,
+    Image
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -38,6 +41,11 @@ const DashboardLayout = ({ children }) => {
             title: 'Candidates',
             icon: Users,
             path: '/candidates'
+        },
+        {
+            title: 'Media',
+            icon: Image,
+            path: '/media'
         }
     ];
 
