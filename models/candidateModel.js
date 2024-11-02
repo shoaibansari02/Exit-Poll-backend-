@@ -14,7 +14,7 @@ const candidateSchema = new mongoose.Schema({
   },
   photo: {
     type: String,
-    required: true,
+    default: null,
   },
   totalVotes: {
     type: Number,

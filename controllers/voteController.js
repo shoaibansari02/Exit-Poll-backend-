@@ -80,6 +80,8 @@ export const castVote = asyncHandler(async (req, res) => {
 export const getZoneVotes = asyncHandler(async (req, res) => {
   const { zoneId } = req.params;
 
+  const baseURL = `${req.protocol}://${req.get("host")}`;
+
   const candidates = await Candidate.find({ zone: zoneId })
     .select("name totalVotes photo")
     .sort({ totalVotes: -1 }); // Sort by votes in descending order
@@ -96,7 +98,7 @@ export const getZoneVotes = asyncHandler(async (req, res) => {
       name: candidate.name,
       votes: candidate.totalVotes,
       photo: candidate.photo,
-      photoUrl: `/uploads/candidates/${candidate.photo}`,
+      photoUrl: `${baseURL}/uploads/candidates/${candidate.photo}`,
       percentage: totalVotesInZone
         ? ((candidate.totalVotes / totalVotesInZone) * 100).toFixed(2)
         : 0,
