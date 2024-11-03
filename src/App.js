@@ -13,6 +13,7 @@ import CitiesPage from "./pages/CitiesPage";
 import ZonesPage from "./pages/ZonesPage";
 import CandidatesPage from "./pages/CandidatesPage";
 import MediaPage from "./pages/MediaPage";
+import NewsPage from "./pages/NewsPage";
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
             <Route path="/zones" element={<ZonesPage />} />
             <Route path="/candidates" element={<CandidatesPage />} />
             <Route path="/media" element={<MediaPage />} />
+            <Route path="/news" element={<NewsPage />} />
           </Route>
         </Routes>
       </AuthProvider>

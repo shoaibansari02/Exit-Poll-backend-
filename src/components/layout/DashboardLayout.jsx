@@ -8,10 +8,10 @@ import {
     MapPin,
     Users,
     LogOut,
-    Settings,
     Menu,
     X,
-    Image
+    Image,
+    Newspaper
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -46,6 +46,11 @@ const DashboardLayout = ({ children }) => {
             title: 'Media',
             icon: Image,
             path: '/media'
+        },
+        {
+            title: "News",
+            icon: Newspaper,
+            path: '/news'
         }
     ];
 
