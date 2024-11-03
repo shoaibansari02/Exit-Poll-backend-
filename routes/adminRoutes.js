@@ -17,6 +17,9 @@ import {
   getDashboardStats,
   uploadAdminMedia,
   getAdminMedia,
+  addNews,
+  getAllNews,
+  deleteNews,
 } from "../controllers/adminController.js";
 import { protect } from "../middlewares/authMiddleware.js";
 import upload from "../config/multerConfig.js";
@@ -65,4 +68,9 @@ router.post(
   uploadAdminMedia
 );
 router.get("/get-media", getAdminMedia);
+
+router.post("/add-news", protect, addNews);
+router.get("/get-news", getAllNews);
+router.delete("/delete-news/:id", protect, deleteNews);
+
 export default router;

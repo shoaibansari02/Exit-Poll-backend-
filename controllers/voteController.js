@@ -83,7 +83,7 @@ export const getZoneVotes = asyncHandler(async (req, res) => {
   const baseURL = `${req.protocol}://${req.get("host")}`;
 
   const candidates = await Candidate.find({ zone: zoneId })
-    .select("name totalVotes photo partyName partyLogo") // Added partyName and partyLogo to select
+    .select("name totalVotes photo partyName partyLogo")
     .sort({ totalVotes: -1 });
 
   const totalVotesInZone = candidates.reduce(

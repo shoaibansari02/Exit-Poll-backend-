@@ -9,6 +9,7 @@ import City from "../models/cityModel.js";
 import Zone from "../models/zoneModel.js";
 import Candidate from "../models/candidateModel.js";
 import AdminMedia from "../models/adminMediaModel.js";
+import News from "../models/newsModel.js";
 import fs from "fs/promises";
 import path from "path";
 
@@ -710,4 +711,63 @@ export const getAdminMedia = asyncHandler(async (req, res) => {
     res.status(500);
     throw new Error("Error retrieving media");
   }
+});
+
+export const addNews = asyncHandler(async (req, res) => {
+  const { title, headline, description } = req.body;
+
+  if (!title || !headline || !description) {
+    res.status(400);
+    throw new Error("Please provide all required fields");
+  }
+
+  const news = await News.create({
+    title,
+    headline,
+    description,
+    createdBy: req.admin._id,
+  });
+
+  if (news) {
+    res.status(201).json({
+      _id: news._id,
+      title: news.title,
+      headline: news.headline,
+      description: news.description,
+      createdAt: news.createdAt,
+    });
+  } else {
+    res.status(400);
+    throw new Error("Invalid news data");
+  }
+});
+
+export const getAllNews = asyncHandler(async (req, res) => {
+  const news = await News.find({})
+    .populate("createdBy", "name email")
+    .sort({ createdAt: -1 });
+
+  res.json(news);
+});
+
+export const deleteNews = asyncHandler(async (req, res) => {
+  const newsId = req.params.id;
+
+  // Check if news exists
+  const news = await News.findById(newsId);
+
+  if (!news) {
+    res.status(404);
+    throw new Error("News not found");
+  }
+
+  if (news.createdBy.toString() !== req.admin._id.toString()) {
+    res.status(403);
+    throw new Error("Not authorized to delete this news");
+  }
+
+  // Delete the news
+  await News.findByIdAndDelete(newsId);
+
+  res.json({ message: "News deleted successfully" });
 });
