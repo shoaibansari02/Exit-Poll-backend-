@@ -1,7 +1,7 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:5000/api";
-// const API_URL = "https://exit-poll-backend-ooax.onrender.com/api";
+// const API_URL = "http://localhost:5000/api";
+const API_URL = "https://exit-poll-backend-ooax.onrender.com/api";
 
 export const getCities = async () => {
   try {
